@@ -1,4 +1,5 @@
 import {
+  Square,
   Pause,
   Play,
   Repeat,
@@ -6,27 +7,47 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
-  Volume2,
 } from 'lucide-react'
 import { IconButton } from '@/components/common/IconButton'
-import { RangeInput } from '@/components/common/RangeInput'
+import { VolumeControl } from '@/components/player/VolumeControl'
 import { usePlayerStore } from '@/stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
+
+const playbackRates = [0.75, 1, 1.25, 1.5]
 
 export const PlaybackControls = () => {
-  const isPlaying = usePlayerStore((state) => state.isPlaying)
-  const isShuffleEnabled = usePlayerStore((state) => state.isShuffleEnabled)
-  const repeatMode = usePlayerStore((state) => state.repeatMode)
-  const volume = usePlayerStore((state) => state.volume)
-  const togglePlay = usePlayerStore((state) => state.togglePlay)
-  const playNext = usePlayerStore((state) => state.playNext)
-  const playPrevious = usePlayerStore((state) => state.playPrevious)
-  const toggleShuffle = usePlayerStore((state) => state.toggleShuffle)
-  const cycleRepeatMode = usePlayerStore((state) => state.cycleRepeatMode)
-  const setVolume = usePlayerStore((state) => state.setVolume)
+  const {
+    isShuffleEnabled,
+    playbackRate,
+    playbackStatus,
+    repeatMode,
+    togglePlay,
+    playNext,
+    playPrevious,
+    toggleShuffle,
+    cycleRepeatMode,
+    stop,
+    setPlaybackRate,
+  } = usePlayerStore(
+    useShallow((state) => ({
+      isShuffleEnabled: state.isShuffleEnabled,
+      playbackRate: state.playbackRate,
+      playbackStatus: state.playbackStatus,
+      repeatMode: state.repeatMode,
+      togglePlay: state.togglePlay,
+      playNext: state.playNext,
+      playPrevious: state.playPrevious,
+      toggleShuffle: state.toggleShuffle,
+      cycleRepeatMode: state.cycleRepeatMode,
+      stop: state.stop,
+      setPlaybackRate: state.setPlaybackRate,
+    })),
+  )
+  const isPlaying = playbackStatus === 'playing' || playbackStatus === 'loading'
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-center gap-3">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
         <IconButton
           aria-label="Toggle shuffle"
           active={isShuffleEnabled}
@@ -48,13 +69,16 @@ export const PlaybackControls = () => {
           size="lg"
         >
           {isPlaying ? (
-            <Pause className="h-6 w-6 fill-current" />
+            <Pause className="h-5 w-5 fill-current sm:h-6 sm:w-6" />
           ) : (
-            <Play className="ml-0.5 h-6 w-6 fill-current" />
+            <Play className="ml-0.5 h-5 w-5 fill-current sm:h-6 sm:w-6" />
           )}
         </IconButton>
+        <IconButton aria-label="Stop playback" onClick={stop}>
+          <Square className="h-4.5 w-4.5 fill-current" />
+        </IconButton>
         <IconButton aria-label="Play next track" onClick={playNext} size="lg">
-          <SkipForward className="h-6 w-6" />
+          <SkipForward className="h-5 w-5 sm:h-6 sm:w-6" />
         </IconButton>
         <IconButton
           aria-label="Change repeat mode"
@@ -69,16 +93,25 @@ export const PlaybackControls = () => {
         </IconButton>
       </div>
 
-      <div className="flex items-center gap-4 rounded-full border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-xl">
-        <Volume2 className="h-4 w-4 text-white/55" />
-        <RangeInput
-          accent="subtle"
-          aria-label="Volume"
-          max={100}
-          onChange={(event) => setVolume(Number(event.target.value))}
-          value={volume}
-        />
-        <span className="w-10 text-right text-sm text-white/45">{volume}</span>
+      <div className="grid gap-4 rounded-[1.5rem] border border-white/10 bg-white/6 p-3 backdrop-blur-xl sm:p-4 md:grid-cols-[minmax(0,1fr)_auto]">
+        <VolumeControl />
+
+        <div className="flex flex-wrap items-center gap-2">
+          {playbackRates.map((rate) => (
+            <button
+              key={rate}
+              className={`rounded-full border px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:text-sm ${
+                playbackRate === rate
+                  ? 'border-accent-300/50 bg-accent-400/18 text-accent-100'
+                  : 'border-white/10 bg-white/6 text-white/55 hover:bg-white/10 hover:text-white'
+              }`}
+              onClick={() => setPlaybackRate(rate)}
+              type="button"
+            >
+              {rate}x
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

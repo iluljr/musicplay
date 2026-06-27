@@ -5,6 +5,7 @@ export const useKeyboardShortcuts = () => {
   const togglePlay = usePlayerStore((state) => state.togglePlay)
   const playNext = usePlayerStore((state) => state.playNext)
   const playPrevious = usePlayerStore((state) => state.playPrevious)
+  const stop = usePlayerStore((state) => state.stop)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -27,9 +28,13 @@ export const useKeyboardShortcuts = () => {
       if (event.code === 'ArrowLeft') {
         playPrevious()
       }
+
+      if (event.code === 'KeyS') {
+        stop()
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [playNext, playPrevious, togglePlay])
+  }, [playNext, playPrevious, stop, togglePlay])
 }

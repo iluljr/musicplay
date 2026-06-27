@@ -10,9 +10,9 @@ type IconButtonProps = PropsWithChildren<
 >
 
 const sizeClasses = {
-  sm: 'h-11 w-11',
-  md: 'h-12 w-12',
-  lg: 'h-14 w-14',
+  sm: 'h-10 w-10 sm:h-11 sm:w-11',
+  md: 'h-11 w-11 sm:h-12 sm:w-12',
+  lg: 'h-12 w-12 sm:h-14 sm:w-14',
 }
 
 export const IconButton = ({

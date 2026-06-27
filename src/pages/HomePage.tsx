@@ -1,41 +1,31 @@
-import { motion } from 'framer-motion'
-import { CinematicBackground } from '@/components/background/CinematicBackground'
+import { GlassPanel } from '@/components/common/GlassPanel'
 import { PlayerCard } from '@/components/player/PlayerCard'
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
-export const HomePage = () => {
-  useKeyboardShortcuts()
+export const HomePage = () => (
+  <div className="space-y-6">
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-[0.35em] text-white/40">Home</p>
+      <h1 className="text-3xl font-semibold text-white sm:text-5xl">
+        Premium browser playback for modern livestream production
+      </h1>
+      <p className="max-w-3xl text-sm leading-6 text-white/45 sm:text-base">
+        A cinematic player surface, modular queue and lyric system, and an app
+        shell designed to grow into a complete music control suite for streamers.
+      </p>
+    </div>
 
-  return (
-    <main className="relative isolate min-h-screen overflow-hidden bg-base-950 text-white">
-      <CinematicBackground />
-
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-center px-4 py-8 sm:px-6 lg:px-8">
-        <div className="w-full space-y-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="space-y-4"
-          >
-            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.35em] text-white/55 backdrop-blur-xl">
-              MusicPlay
-            </span>
-            <div className="max-w-3xl">
-              <h1 className="text-5xl font-semibold tracking-tight text-white md:text-7xl">
-                A cinematic browser source for now playing moments.
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-white/50 md:text-lg">
-                Designed for OBS overlays with premium motion, glass surfaces,
-                and a modular player shell ready for playlists, lyrics, and
-                remote sync.
-              </p>
-            </div>
-          </motion.div>
-
-          <PlayerCard />
+    <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
+      <PlayerCard />
+      <GlassPanel className="space-y-4 p-5">
+        <p className="text-xs uppercase tracking-[0.35em] text-white/40">
+          Architecture Notes
+        </p>
+        <div className="space-y-4 text-sm leading-7 text-white/55">
+          <p>Mock APIs are isolated behind typed models for songs, playlists, and settings.</p>
+          <p>Audio, lyrics, queue, and route shell are wired for future backend replacement.</p>
+          <p>OBS-oriented display modes still work via URL parameters without breaking the app shell.</p>
         </div>
-      </div>
-    </main>
-  )
-}
+      </GlassPanel>
+    </div>
+  </div>
+)
