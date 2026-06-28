@@ -69,7 +69,13 @@ export const AppLayout = () => {
           />
         ) : null}
 
-        <div className="min-w-0 flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+        <div
+          className={`min-w-0 flex-1 ${
+            displayMode.compactLayout
+              ? 'px-3 py-3 sm:px-4 sm:py-4'
+              : 'px-4 py-4 sm:px-6 sm:py-6 lg:px-8'
+          }`}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname || 'home'}

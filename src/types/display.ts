@@ -9,4 +9,5 @@ export type DisplayMode = {
   showHero: boolean
   transparentBackground: boolean
   compactLayout: boolean
+  overlaySource: 'none' | 'url' | 'settings'
 }

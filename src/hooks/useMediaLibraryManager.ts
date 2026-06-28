@@ -47,6 +47,12 @@ export const useMediaLibraryManager = () => {
         syncSongs(songs)
         return songs
       }),
+    deleteAllSongs: () =>
+      withMutation(async () => {
+        const songs = await mediaLibraryService.deleteAllSongs()
+        syncSongs(songs)
+        return songs
+      }),
     duplicateSongs: (songIds: string[]) =>
       withMutation(async () => {
         const songs = await mediaLibraryService.duplicateSongs(songIds)

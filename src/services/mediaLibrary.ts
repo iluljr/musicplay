@@ -4,6 +4,23 @@ import type { ImportSongDraft, StoredAssetRecord, StoredSongRecord } from '@/typ
 import type { Song, SongAsset, SongAssetKind, SongAssets } from '@/types/song'
 
 const assetUrlCache = new Map<string, string>()
+const SEED_STATUS_STORAGE_KEY = 'musicplay.media-library.seeded'
+
+const isSeedStatusStored = () => {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return window.localStorage.getItem(SEED_STATUS_STORAGE_KEY) === '1'
+}
+
+const markSeedStatusStored = () => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(SEED_STATUS_STORAGE_KEY, '1')
+}
 
 const ensureAssetUrl = (asset: StoredAssetRecord) => {
   const cached = assetUrlCache.get(asset.id)
@@ -202,10 +219,16 @@ export const mediaLibraryService = {
     const existingSongs = await mediaStorage.getSongs()
 
     if (existingSongs.length > 0) {
+      markSeedStatusStored()
+      return
+    }
+
+    if (isSeedStatusStored()) {
       return
     }
 
     await mediaStorage.putSongs(mockSongs.map(toStoredSongRecord))
+    markSeedStatusStored()
   },
   async listSongs() {
     await this.ensureSeedLibrary()
@@ -259,6 +282,12 @@ export const mediaLibraryService = {
 
     await mediaStorage.deleteSongs(songIds)
     await mediaStorage.deleteAssets(assetIds)
+
+    return this.listSongs()
+  },
+  async deleteAllSongs() {
+    await mediaStorage.clearLibrary()
+    markSeedStatusStored()
 
     return this.listSongs()
   },

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useSettingsStore } from '@/stores/settingsStore'
 import type { DisplayMode } from '@/types/display'
 
 const parseBooleanParam = (value: string | null, fallback: boolean) => {
@@ -20,17 +21,59 @@ const parseBooleanParam = (value: string | null, fallback: boolean) => {
 
 export const useDisplayMode = (): DisplayMode => {
   const location = useLocation()
+  const settings = useSettingsStore((state) => state.settings)
 
   return useMemo(() => {
     const searchParams = new URLSearchParams(location.search)
-    const isOverlay = parseBooleanParam(searchParams.get('overlay'), false)
-    const isMinimal = parseBooleanParam(searchParams.get('minimal'), false)
+    const supportsObsSurface = location.pathname === '/'
+    const overlayParam = searchParams.get('overlay')
+    const minimalParam = searchParams.get('minimal')
+    const overlayFromUrl = parseBooleanParam(overlayParam, false)
+    const minimalFromUrl = parseBooleanParam(minimalParam, false)
+    const overlaySource =
+      overlayParam !== null
+        ? overlayFromUrl
+          ? 'url'
+          : 'none'
+        : settings?.obsMode && supportsObsSurface
+          ? 'settings'
+          : 'none'
+    const isOverlay = overlaySource !== 'none'
+    const isMinimal =
+      minimalParam !== null
+        ? minimalFromUrl
+        : overlaySource === 'settings'
+          ? settings?.obsMinimal ?? false
+          : false
 
-    const showCover = parseBooleanParam(searchParams.get('cover'), true)
-    const showControls = parseBooleanParam(searchParams.get('controls'), !isMinimal)
-    const showPlaylist = parseBooleanParam(searchParams.get('playlist'), !isMinimal)
-    const showProgress = parseBooleanParam(searchParams.get('progress'), !isMinimal)
-    const showLyrics = parseBooleanParam(searchParams.get('lyrics'), !isMinimal)
+    const showCover = parseBooleanParam(
+      searchParams.get('cover'),
+      overlaySource === 'settings' ? (settings?.obsShowCover ?? true) : true,
+    )
+    const showControls = parseBooleanParam(
+      searchParams.get('controls'),
+      overlaySource === 'settings'
+        ? (settings?.obsShowControls ?? !isMinimal)
+        : !isMinimal,
+    )
+    const showPlaylist = parseBooleanParam(
+      searchParams.get('playlist'),
+      overlaySource === 'settings'
+        ? (settings?.obsShowPlaylist ?? !isMinimal)
+        : !isMinimal,
+    )
+    const showProgress = parseBooleanParam(
+      searchParams.get('progress'),
+      overlaySource === 'settings'
+        ? (settings?.obsShowProgress ?? !isMinimal)
+        : !isMinimal,
+    )
+    const showLyrics = parseBooleanParam(
+      searchParams.get('lyrics'),
+      overlaySource === 'settings'
+        ? (settings?.obsShowLyrics ?? !isMinimal)
+        : !isMinimal,
+    )
 
     return {
       isOverlay,
@@ -43,6 +86,7 @@ export const useDisplayMode = (): DisplayMode => {
       showHero: !isOverlay && !isMinimal,
       transparentBackground: isOverlay,
       compactLayout: isOverlay || isMinimal,
+      overlaySource,
     }
-  }, [location.search])
+  }, [location.pathname, location.search, settings])
 }

@@ -12,4 +12,10 @@ export const mockSettings: AppSettings = {
   crossfadeDuration: 2.5,
   volume: 72,
   visualizerStyle: 'ambient',
+  obsMinimal: false,
+  obsShowCover: true,
+  obsShowControls: true,
+  obsShowPlaylist: false,
+  obsShowProgress: true,
+  obsShowLyrics: true,
 }

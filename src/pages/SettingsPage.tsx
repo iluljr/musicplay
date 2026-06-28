@@ -1,16 +1,28 @@
+import { useMemo, useState } from 'react'
+import { Copy, ExternalLink, MonitorUp, WandSparkles } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { GlassPanel } from '@/components/common/GlassPanel'
 import { RangeInput } from '@/components/common/RangeInput'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { buildObsSearchParams, buildObsSourceUrl } from '@/utils/obs'
 
 const selectClassName =
   'w-full rounded-2xl border border-white/10 bg-base-900/90 px-4 py-3 text-sm text-white outline-none transition-colors hover:border-white/20 focus:border-accent-300/45 [color-scheme:dark]'
 
 export const SettingsPage = () => {
   const { loading, settings, updateSetting } = useSettingsStore()
+  const [copied, setCopied] = useState(false)
 
   if (loading || !settings) {
     return <div className="text-white/45">Loading settings...</div>
   }
+
+  const obsPreviewPath = useMemo(
+    () => `/?${buildObsSearchParams(settings).toString()}`,
+    [settings],
+  )
+
+  const obsSourceUrl = useMemo(() => buildObsSourceUrl(settings), [settings])
 
   return (
     <div className="space-y-6">
@@ -156,6 +168,123 @@ export const SettingsPage = () => {
           </div>
         </GlassPanel>
       </div>
+
+      <GlassPanel className="space-y-5 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/40">OBS Browser Source</p>
+            <h2 className="text-xl font-semibold text-white">Functioning overlay mode</h2>
+            <p className="max-w-3xl text-sm leading-6 text-white/50">
+              Use these switches to generate a ready-to-paste OBS Browser Source URL.
+              URL parameters still override settings when you need a special scene variant.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              className="rounded-full border border-accent-300/30 bg-accent-400/12 px-4 py-2 text-sm text-accent-100 transition-colors hover:bg-accent-400/18"
+              to={obsPreviewPath}
+            >
+              <span className="inline-flex items-center gap-2">
+                <MonitorUp className="h-4 w-4" />
+                Preview OBS Mode
+              </span>
+            </Link>
+            <button
+              className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-white/70 transition-colors hover:border-white/20 hover:text-white"
+              onClick={async () => {
+                await navigator.clipboard.writeText(obsSourceUrl)
+                setCopied(true)
+                window.setTimeout(() => setCopied(false), 1800)
+              }}
+              type="button"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Copy className="h-4 w-4" />
+                {copied ? 'Copied' : 'Copy OBS URL'}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/65">Enable OBS Mode</span>
+              <input
+                checked={settings.obsMode}
+                onChange={(event) => updateSetting('obsMode', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/65">Minimal Layout</span>
+              <input
+                checked={settings.obsMinimal}
+                onChange={(event) => updateSetting('obsMinimal', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/65">Show Cover</span>
+              <input
+                checked={settings.obsShowCover}
+                onChange={(event) => updateSetting('obsShowCover', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/65">Show Controls</span>
+              <input
+                checked={settings.obsShowControls}
+                onChange={(event) => updateSetting('obsShowControls', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/65">Show Queue</span>
+              <input
+                checked={settings.obsShowPlaylist}
+                onChange={(event) => updateSetting('obsShowPlaylist', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/65">Show Progress</span>
+              <input
+                checked={settings.obsShowProgress}
+                onChange={(event) => updateSetting('obsShowProgress', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+            <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/65">Show Lyrics</span>
+              <input
+                checked={settings.obsShowLyrics}
+                onChange={(event) => updateSetting('obsShowLyrics', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-white/10 bg-base-950/40 p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-white/35">
+              <WandSparkles className="h-4 w-4" />
+              Generated Browser Source
+            </div>
+            <p className="mt-3 text-sm leading-6 text-white/50">
+              Paste this URL into OBS Browser Source. It opens the transparent overlay
+              variant directly with your selected layout visibility.
+            </p>
+            <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-3 text-xs leading-6 text-white/65">
+              {obsSourceUrl}
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-sm text-white/45">
+              <ExternalLink className="h-4 w-4" />
+              URL params like `?overlay=1&lyrics=1&cover=0` still override defaults.
+            </div>
+          </div>
+        </div>
+      </GlassPanel>
     </div>
   )
 }

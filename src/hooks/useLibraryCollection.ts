@@ -26,6 +26,7 @@ export const useLibraryCollection = () => {
       setAssetFilter: library.setAssetFilter,
       setSortBy: library.setSortBy,
       setCurrentPage: library.setCurrentPage,
+      setPageSize: library.setPageSize,
       setViewMode: library.setViewMode,
       toggleSelectedSong: library.toggleSelectedSong,
       selectSongs: library.selectSongs,

@@ -5,7 +5,7 @@ import {
   inferThemeColorFromName,
   normalizeSongBaseName,
 } from '@/utils/media'
-import { getAudioDurationFromFile } from '@/utils/mediaMetadata'
+import { getAudioDurationFromFile, getAudioMetadataFromFile } from '@/utils/mediaMetadata'
 
 const assetOrder: ImportableAssetKind[] = ['audio', 'cover', 'lyrics', 'background']
 
@@ -62,7 +62,17 @@ export const scanImportFiles = async (files: File[]) => {
   await Promise.all(
     drafts.map(async (draft) => {
       if (draft.files.audio) {
-        draft.duration = await getAudioDurationFromFile(draft.files.audio.file)
+        const [duration, metadata] = await Promise.all([
+          getAudioDurationFromFile(draft.files.audio.file),
+          getAudioMetadataFromFile(draft.files.audio.file),
+        ])
+
+        draft.duration = duration
+        draft.title = metadata.title || draft.title
+        draft.artist = metadata.artist || draft.artist
+        draft.album = metadata.album || draft.album
+        draft.genre = metadata.genre || draft.genre
+        draft.year = metadata.year || draft.year
       }
     }),
   )

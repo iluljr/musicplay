@@ -29,6 +29,8 @@ const sortOptions = [
   { value: 'lastPlayed', label: 'Last Played' },
 ] as const
 
+const pageSizeOptions = [5, 10, 15, 20, 25] as const
+
 const selectClassName =
   'rounded-2xl border border-white/10 bg-base-900/90 px-4 py-3 text-sm text-white outline-none transition-colors hover:border-white/20 focus:border-accent-300/45 [color-scheme:dark]'
 
@@ -228,6 +230,28 @@ export const LibraryPage = () => {
                 Delete
               </span>
             </button>
+            <button
+              className="rounded-full border border-red-400/25 bg-red-500/10 px-4 py-2 text-sm text-red-100 disabled:opacity-40"
+              disabled={library.songs.length === 0 || manager.isMutating}
+              onClick={async () => {
+                const isConfirmed = window.confirm(
+                  'Delete all songs and imported assets from the library? This cannot be undone.',
+                )
+
+                if (!isConfirmed) {
+                  return
+                }
+
+                await manager.deleteAllSongs()
+                library.clearSelectedSongs()
+              }}
+              type="button"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Trash2 className="h-4 w-4" />
+                Delete All
+              </span>
+            </button>
           </div>
 
           <div className="flex items-center justify-end text-sm text-white/45">
@@ -307,9 +331,25 @@ export const LibraryPage = () => {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-5 py-4 text-sm text-white/45">
-          <span>
-            Page {library.currentPage} of {library.totalPages}
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              Page {library.currentPage} of {library.totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-white/35">Per page</span>
+              <select
+                className={selectClassName}
+                onChange={(event) => library.setPageSize(Number(event.target.value))}
+                value={library.pageSize}
+              >
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <button
               className="rounded-full border border-white/10 px-4 py-2 disabled:opacity-40"

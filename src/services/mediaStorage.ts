@@ -94,4 +94,12 @@ export const mediaStorage = {
       )
     })
   },
+  async clearLibrary() {
+    return withTransaction([SONGS_STORE, ASSETS_STORE], 'readwrite', async (stores) => {
+      await Promise.all([
+        runStoreRequest(stores[SONGS_STORE].clear()),
+        runStoreRequest(stores[ASSETS_STORE].clear()),
+      ])
+    })
+  },
 }

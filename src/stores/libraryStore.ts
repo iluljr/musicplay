@@ -35,6 +35,7 @@ type LibraryState = {
   setAssetFilter: (assetFilter: AssetFilter) => void
   setSortBy: (sortBy: SongSortKey) => void
   setCurrentPage: (currentPage: number) => void
+  setPageSize: (pageSize: number) => void
   setViewMode: (viewMode: LibraryViewMode) => void
   toggleSelectedSong: (songId: string) => void
   selectSongs: (songIds: string[]) => void
@@ -67,6 +68,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
         state.sortBy === sortBy && state.sortOrder === 'asc' ? 'desc' : 'asc',
     })),
   setCurrentPage: (currentPage) => set({ currentPage }),
+  setPageSize: (pageSize) => set({ pageSize, currentPage: 1 }),
   setViewMode: (viewMode) => set({ viewMode }),
   toggleSelectedSong: (songId) =>
     set((state) => ({

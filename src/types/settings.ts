@@ -14,4 +14,10 @@ export type AppSettings = {
   crossfadeDuration: number
   volume: number
   visualizerStyle: VisualizerStyle
+  obsMinimal: boolean
+  obsShowCover: boolean
+  obsShowControls: boolean
+  obsShowPlaylist: boolean
+  obsShowProgress: boolean
+  obsShowLyrics: boolean
 }
