@@ -17,6 +17,7 @@ export const AppLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const location = useLocation()
   const outlet = useOutlet()
+  const [renderedOutlet, setRenderedOutlet] = useState(outlet)
   const displayMode = useDisplayMode()
   const isPageVisible = usePageVisibility()
   const activeSong = usePlayerStore((state) => state.tracks[state.activeIndex] ?? null)
@@ -32,6 +33,12 @@ export const AppLayout = () => {
   useEffect(() => {
     setIsSidebarOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    if (outlet) {
+      setRenderedOutlet(outlet)
+    }
+  }, [outlet])
 
   if (!activeSong) {
     return (
@@ -84,7 +91,11 @@ export const AppLayout = () => {
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             >
-              {outlet}
+              {renderedOutlet ?? (
+                <div className="flex min-h-[40vh] items-center justify-center text-white/45">
+                  Loading view...
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

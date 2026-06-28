@@ -12,17 +12,21 @@ const selectClassName =
 export const SettingsPage = () => {
   const { loading, settings, updateSetting } = useSettingsStore()
   const [copied, setCopied] = useState(false)
-
-  if (loading || !settings) {
-    return <div className="text-white/45">Loading settings...</div>
-  }
+  const resolvedSettings = settings
 
   const obsPreviewPath = useMemo(
-    () => `/?${buildObsSearchParams(settings).toString()}`,
-    [settings],
+    () => (resolvedSettings ? `/?${buildObsSearchParams(resolvedSettings).toString()}` : '/'),
+    [resolvedSettings],
   )
 
-  const obsSourceUrl = useMemo(() => buildObsSourceUrl(settings), [settings])
+  const obsSourceUrl = useMemo(
+    () => (resolvedSettings ? buildObsSourceUrl(resolvedSettings) : ''),
+    [resolvedSettings],
+  )
+
+  if (loading || !resolvedSettings) {
+    return <div className="text-white/45">Loading settings...</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -39,7 +43,7 @@ export const SettingsPage = () => {
           <label className="flex items-center justify-between gap-4">
             <span className="text-sm text-white/65">Auto Play</span>
             <input
-              checked={settings.autoPlay}
+              checked={resolvedSettings.autoPlay}
               onChange={(event) => updateSetting('autoPlay', event.target.checked)}
               type="checkbox"
             />
@@ -47,7 +51,7 @@ export const SettingsPage = () => {
           <label className="flex items-center justify-between gap-4">
             <span className="text-sm text-white/65">OBS Mode</span>
             <input
-              checked={settings.obsMode}
+              checked={resolvedSettings.obsMode}
               onChange={(event) => updateSetting('obsMode', event.target.checked)}
               type="checkbox"
             />
@@ -55,7 +59,7 @@ export const SettingsPage = () => {
           <label className="flex items-center justify-between gap-4">
             <span className="text-sm text-white/65">Loop</span>
             <input
-              checked={settings.loop}
+              checked={resolvedSettings.loop}
               onChange={(event) => updateSetting('loop', event.target.checked)}
               type="checkbox"
             />
@@ -63,7 +67,7 @@ export const SettingsPage = () => {
           <label className="flex items-center justify-between gap-4">
             <span className="text-sm text-white/65">Shuffle</span>
             <input
-              checked={settings.shuffle}
+              checked={resolvedSettings.shuffle}
               onChange={(event) => updateSetting('shuffle', event.target.checked)}
               type="checkbox"
             />
@@ -71,7 +75,7 @@ export const SettingsPage = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-white/65">Crossfade Duration</span>
-              <span className="text-sm text-white/45">{settings.crossfadeDuration}s</span>
+              <span className="text-sm text-white/45">{resolvedSettings.crossfadeDuration}s</span>
             </div>
             <RangeInput
               max={12}
@@ -80,19 +84,19 @@ export const SettingsPage = () => {
                 updateSetting('crossfadeDuration', Number(event.target.value))
               }
               step={0.5}
-              value={settings.crossfadeDuration}
+              value={resolvedSettings.crossfadeDuration}
             />
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-white/65">Volume</span>
-              <span className="text-sm text-white/45">{settings.volume}</span>
+              <span className="text-sm text-white/45">{resolvedSettings.volume}</span>
             </div>
             <RangeInput
               max={100}
               min={0}
               onChange={(event) => updateSetting('volume', Number(event.target.value))}
-              value={settings.volume}
+              value={resolvedSettings.volume}
             />
           </div>
         </GlassPanel>
@@ -103,8 +107,10 @@ export const SettingsPage = () => {
             <span className="text-sm text-white/65">Theme</span>
             <select
               className={selectClassName}
-              onChange={(event) => updateSetting('theme', event.target.value as typeof settings.theme)}
-              value={settings.theme}
+              onChange={(event) =>
+                updateSetting('theme', event.target.value as typeof resolvedSettings.theme)
+              }
+              value={resolvedSettings.theme}
             >
               <option value="midnight">Midnight</option>
               <option value="obsidian">Obsidian</option>
@@ -117,7 +123,7 @@ export const SettingsPage = () => {
               className="h-12 w-full rounded-2xl border border-white/10 bg-transparent"
               onChange={(event) => updateSetting('accentColor', event.target.value)}
               type="color"
-              value={settings.accentColor}
+              value={resolvedSettings.accentColor}
             />
           </div>
           <div className="space-y-3">
@@ -127,10 +133,10 @@ export const SettingsPage = () => {
               onChange={(event) =>
                 updateSetting(
                   'lyricsAnimation',
-                  event.target.value as typeof settings.lyricsAnimation,
+                  event.target.value as typeof resolvedSettings.lyricsAnimation,
                 )
               }
-              value={settings.lyricsAnimation}
+              value={resolvedSettings.lyricsAnimation}
             >
               <option value="cinematic">Cinematic</option>
               <option value="smooth">Smooth</option>
@@ -140,13 +146,13 @@ export const SettingsPage = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-white/65">Lyrics Size</span>
-              <span className="text-sm text-white/45">{settings.lyricsSize}px</span>
+              <span className="text-sm text-white/45">{resolvedSettings.lyricsSize}px</span>
             </div>
             <RangeInput
               max={48}
               min={18}
               onChange={(event) => updateSetting('lyricsSize', Number(event.target.value))}
-              value={settings.lyricsSize}
+              value={resolvedSettings.lyricsSize}
             />
           </div>
           <div className="space-y-3">
@@ -156,10 +162,10 @@ export const SettingsPage = () => {
               onChange={(event) =>
                 updateSetting(
                   'visualizerStyle',
-                  event.target.value as typeof settings.visualizerStyle,
+                  event.target.value as typeof resolvedSettings.visualizerStyle,
                 )
               }
-              value={settings.visualizerStyle}
+              value={resolvedSettings.visualizerStyle}
             >
               <option value="ambient">Ambient</option>
               <option value="bars">Bars</option>
@@ -211,7 +217,7 @@ export const SettingsPage = () => {
             <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
               <span className="text-sm text-white/65">Enable OBS Mode</span>
               <input
-                checked={settings.obsMode}
+                checked={resolvedSettings.obsMode}
                 onChange={(event) => updateSetting('obsMode', event.target.checked)}
                 type="checkbox"
               />
@@ -219,7 +225,7 @@ export const SettingsPage = () => {
             <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
               <span className="text-sm text-white/65">Minimal Layout</span>
               <input
-                checked={settings.obsMinimal}
+                checked={resolvedSettings.obsMinimal}
                 onChange={(event) => updateSetting('obsMinimal', event.target.checked)}
                 type="checkbox"
               />
@@ -227,7 +233,7 @@ export const SettingsPage = () => {
             <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
               <span className="text-sm text-white/65">Show Cover</span>
               <input
-                checked={settings.obsShowCover}
+                checked={resolvedSettings.obsShowCover}
                 onChange={(event) => updateSetting('obsShowCover', event.target.checked)}
                 type="checkbox"
               />
@@ -235,7 +241,7 @@ export const SettingsPage = () => {
             <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
               <span className="text-sm text-white/65">Show Controls</span>
               <input
-                checked={settings.obsShowControls}
+                checked={resolvedSettings.obsShowControls}
                 onChange={(event) => updateSetting('obsShowControls', event.target.checked)}
                 type="checkbox"
               />
@@ -243,7 +249,7 @@ export const SettingsPage = () => {
             <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
               <span className="text-sm text-white/65">Show Queue</span>
               <input
-                checked={settings.obsShowPlaylist}
+                checked={resolvedSettings.obsShowPlaylist}
                 onChange={(event) => updateSetting('obsShowPlaylist', event.target.checked)}
                 type="checkbox"
               />
@@ -251,7 +257,7 @@ export const SettingsPage = () => {
             <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
               <span className="text-sm text-white/65">Show Progress</span>
               <input
-                checked={settings.obsShowProgress}
+                checked={resolvedSettings.obsShowProgress}
                 onChange={(event) => updateSetting('obsShowProgress', event.target.checked)}
                 type="checkbox"
               />
@@ -259,7 +265,7 @@ export const SettingsPage = () => {
             <label className="flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.03] px-4 py-3">
               <span className="text-sm text-white/65">Show Lyrics</span>
               <input
-                checked={settings.obsShowLyrics}
+                checked={resolvedSettings.obsShowLyrics}
                 onChange={(event) => updateSetting('obsShowLyrics', event.target.checked)}
                 type="checkbox"
               />
