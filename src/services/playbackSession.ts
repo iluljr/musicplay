@@ -1,4 +1,5 @@
 const AUDIO_MASTER_STORAGE_KEY = 'musicplay.audio-master'
+const PLAYBACK_RESET_STORAGE_KEY = 'musicplay.playback-reset'
 const AUDIO_MASTER_TTL_MS = 8000
 const AUDIO_MASTER_HEARTBEAT_MS = 2500
 
@@ -18,10 +19,12 @@ const createClientId = () => {
 class PlaybackSession {
   private readonly clientId = createClientId()
   private heartbeatTimer: number | null = null
+  private resetListeners = new Set<() => void>()
 
   constructor() {
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', this.release)
+      window.addEventListener('storage', this.handleStorageEvent)
     }
   }
 
@@ -73,6 +76,31 @@ class PlaybackSession {
     }
 
     window.localStorage.removeItem(AUDIO_MASTER_STORAGE_KEY)
+  }
+
+  broadcastReset = () => {
+    this.clearGlobalMaster()
+
+    if (typeof window === 'undefined') {
+      this.notifyResetListeners()
+      return
+    }
+
+    window.localStorage.setItem(
+      PLAYBACK_RESET_STORAGE_KEY,
+      JSON.stringify({
+        clientId: this.clientId,
+        updatedAt: Date.now(),
+      }),
+    )
+    this.notifyResetListeners()
+  }
+
+  subscribeToReset = (listener: () => void) => {
+    this.resetListeners.add(listener)
+    return () => {
+      this.resetListeners.delete(listener)
+    }
   }
 
   private startHeartbeat() {
@@ -134,6 +162,21 @@ class PlaybackSession {
 
   private isExpired(record: AudioMasterRecord) {
     return Date.now() - record.updatedAt > AUDIO_MASTER_TTL_MS
+  }
+
+  private notifyResetListeners() {
+    for (const listener of this.resetListeners) {
+      listener()
+    }
+  }
+
+  private handleStorageEvent = (event: StorageEvent) => {
+    if (event.key !== PLAYBACK_RESET_STORAGE_KEY || !event.newValue) {
+      return
+    }
+
+    this.clearGlobalMaster()
+    this.notifyResetListeners()
   }
 }
 

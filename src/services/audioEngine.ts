@@ -1,5 +1,6 @@
 import { playerGateway } from '@/services/playerGateway'
 import { playbackSession } from '@/services/playbackSession'
+import { setPlayerStoreState } from '@/stores/playerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import type { Song } from '@/types/song'
@@ -27,6 +28,22 @@ class AudioEngine {
     })
     this.audio.addEventListener('ended', () => this.flushTelemetry(true, 'ended'))
     this.audio.addEventListener('timeupdate', () => this.queueTelemetry())
+    playbackSession.subscribeToReset(() => {
+      this.syncing = true
+      this.forcedPlaybackStatus = 'stopped'
+      this.audio.pause()
+      this.audio.currentTime = 0
+      this.syncing = false
+      setPlayerStoreState({
+        playbackStatus: 'stopped',
+        currentTime: 0,
+        isShuffleEnabled: false,
+        repeatMode: 'all',
+        volume: 72,
+        playbackRate: 1,
+        error: null,
+      })
+    })
   }
 
   mount = (enabled: boolean) => {

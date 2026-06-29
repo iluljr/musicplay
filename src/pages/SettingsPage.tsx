@@ -120,9 +120,9 @@ export const SettingsPage = () => {
                 disabled={isResetting}
                 onClick={async () => {
                   setIsResetting(true)
-                  playbackSession.clearGlobalMaster()
+                  playbackSession.broadcastReset()
                   setPlayerStoreState({
-                    playbackStatus: 'idle',
+                    playbackStatus: 'stopped',
                     currentTime: 0,
                     isShuffleEnabled: false,
                     repeatMode: 'all',

@@ -156,7 +156,7 @@ export class PlayerStateManager {
       activeSongId: this.songs[0]?.id ?? null,
       activeIndex: 0,
       queueSongIds: this.baseQueueSongIds,
-      playbackStatus: 'idle',
+      playbackStatus: 'stopped',
       currentTime: 0,
       duration: this.songs[0]?.duration ?? 0,
       isShuffleEnabled: false,
