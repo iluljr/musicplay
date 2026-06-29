@@ -3,7 +3,70 @@ import type { Playlist } from '@/types/playlist'
 import type { AppSettings } from '@/types/settings'
 import type { Song } from '@/types/song'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+const DEFAULT_LOCAL_API_BASE_URL = 'http://localhost:3001'
+
+const isLocalHostname = (hostname: string) =>
+  ['localhost', '127.0.0.1', '::1'].includes(hostname)
+
+const getRuntimeApiBaseUrl = () => {
+  const configuredUrl = import.meta.env.VITE_API_BASE_URL
+
+  if (typeof window === 'undefined') {
+    return configuredUrl ?? DEFAULT_LOCAL_API_BASE_URL
+  }
+
+  const runtimeProtocol = window.location.protocol
+  const runtimeHostname = window.location.hostname
+
+  if (!configuredUrl) {
+    return `${runtimeProtocol}//${runtimeHostname}:3001`
+  }
+
+  try {
+    const parsedUrl = new URL(configuredUrl)
+
+    if (isLocalHostname(parsedUrl.hostname) && !isLocalHostname(runtimeHostname)) {
+      parsedUrl.protocol = runtimeProtocol
+      parsedUrl.hostname = runtimeHostname
+      return parsedUrl.toString().replace(/\/$/, '')
+    }
+
+    return configuredUrl
+  } catch {
+    return configuredUrl
+  }
+}
+
+const API_BASE_URL = getRuntimeApiBaseUrl()
+
+const getRuntimeWsUrl = () => {
+  const configuredUrl = import.meta.env.VITE_WS_URL
+
+  if (typeof window === 'undefined') {
+    return configuredUrl ?? `${API_BASE_URL.replace(/^http/, 'ws')}/ws/player`
+  }
+
+  const runtimeProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const runtimeHostname = window.location.hostname
+
+  if (!configuredUrl) {
+    return `${API_BASE_URL.replace(/^http/, 'ws')}/ws/player`
+  }
+
+  try {
+    const parsedUrl = new URL(configuredUrl)
+
+    if (isLocalHostname(parsedUrl.hostname) && !isLocalHostname(runtimeHostname)) {
+      parsedUrl.protocol = runtimeProtocol
+      parsedUrl.hostname = runtimeHostname
+      return parsedUrl.toString()
+    }
+
+    return configuredUrl
+  } catch {
+    return configuredUrl
+  }
+}
 
 const createUrl = (path: string) => `${API_BASE_URL}${path}`
 
@@ -35,9 +98,7 @@ const fetchJson = async <T>(path: string, init?: RequestInit) => {
 
 export const backendApi = {
   baseUrl: API_BASE_URL,
-  wsUrl:
-    import.meta.env.VITE_WS_URL ??
-    `${API_BASE_URL.replace(/^http/, 'ws')}/ws/player`,
+  wsUrl: getRuntimeWsUrl(),
   normalizeSong,
   getSongs: async () => (await fetchJson<Song[]>('/api/songs')).map(normalizeSong),
   getPlaylists: () => fetchJson<Playlist[]>('/api/playlists'),
