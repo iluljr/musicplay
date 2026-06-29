@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { playbackSession } from '@/services/playbackSession'
 import type { PlaybackStatus, RepeatMode } from '@/types/player'
 import type { Song } from '@/types/song'
 
@@ -12,6 +13,8 @@ export type PlayerController = {
   seek: (timeInSeconds: number) => void
   setVolume: (volume: number) => void
   setPlaybackRate: (playbackRate: number) => void
+  toggleShuffle: () => void
+  cycleRepeatMode: () => void
 }
 
 let playerController: PlayerController | null = null
@@ -23,6 +26,7 @@ export const bindPlayerController = (controller: PlayerController) => {
 type PlayerState = {
   tracks: Song[]
   activeIndex: number
+  queueSongIds: string[]
   playbackStatus: PlaybackStatus
   currentTime: number
   duration: number
@@ -47,8 +51,6 @@ type PlayerState = {
   setPlaybackRate: (playbackRate: number) => void
 }
 
-const repeatOrder: RepeatMode[] = ['off', 'all', 'one']
-
 const callController = <T>(callback: (controller: PlayerController) => T) => {
   if (!playerController) {
     return
@@ -60,6 +62,7 @@ const callController = <T>(callback: (controller: PlayerController) => T) => {
 export const usePlayerStore = create<PlayerState>((set) => ({
   tracks: [],
   activeIndex: 0,
+  queueSongIds: [],
   playbackStatus: 'idle',
   currentTime: 0,
   duration: 0,
@@ -85,40 +88,92 @@ export const usePlayerStore = create<PlayerState>((set) => ({
         return state
       }
 
+      playbackSession.forceClaimMaster()
       void callController((controller) => controller.playTrackAtIndex(nextIndex))
-      return state
+      return {
+        ...state,
+        activeIndex: nextIndex,
+        currentTime: 0,
+        playbackStatus: 'playing',
+      }
     }),
-  play: () => {
-    void callController((controller) => controller.play())
-  },
-  pause: () => callController((controller) => controller.pause()),
-  stop: () => callController((controller) => controller.stop()),
+  play: () =>
+    set((state) => {
+      playbackSession.forceClaimMaster()
+      void callController((controller) => controller.play())
+      return {
+        ...state,
+        playbackStatus: 'playing',
+      }
+    }),
+  pause: () =>
+    set((state) => {
+      callController((controller) => controller.pause())
+      return {
+        ...state,
+        playbackStatus: 'paused',
+      }
+    }),
+  stop: () =>
+    set((state) => {
+      callController((controller) => controller.stop())
+      return {
+        ...state,
+        playbackStatus: 'stopped',
+        currentTime: 0,
+      }
+    }),
   togglePlay: () =>
     set((state) => {
       if (state.playbackStatus === 'playing' || state.playbackStatus === 'loading') {
         callController((controller) => controller.pause())
-        return state
+        return {
+          ...state,
+          playbackStatus: 'paused',
+        }
       }
 
+      playbackSession.forceClaimMaster()
       void callController((controller) => controller.play())
-      return state
+      return {
+        ...state,
+        playbackStatus: 'playing',
+      }
     }),
-  playNext: () => callController((controller) => controller.next()),
-  playPrevious: () => callController((controller) => controller.previous()),
-  toggleShuffle: () =>
-    set((state) => ({
-      isShuffleEnabled: !state.isShuffleEnabled,
-    })),
-  cycleRepeatMode: () =>
-    set((state) => ({
-      repeatMode:
-        repeatOrder[(repeatOrder.indexOf(state.repeatMode) + 1) % repeatOrder.length],
-    })),
+  playNext: () => {
+    playbackSession.forceClaimMaster()
+    callController((controller) => controller.next())
+  },
+  playPrevious: () => {
+    playbackSession.forceClaimMaster()
+    callController((controller) => controller.previous())
+  },
+  toggleShuffle: () => callController((controller) => controller.toggleShuffle()),
+  cycleRepeatMode: () => callController((controller) => controller.cycleRepeatMode()),
   seek: (timeInSeconds) =>
-    callController((controller) => controller.seek(timeInSeconds)),
-  setVolume: (volume) => callController((controller) => controller.setVolume(volume)),
+    set((state) => {
+      callController((controller) => controller.seek(timeInSeconds))
+      return {
+        ...state,
+        currentTime: Math.max(0, Math.min(timeInSeconds, state.duration || timeInSeconds)),
+      }
+    }),
+  setVolume: (volume) =>
+    set((state) => {
+      callController((controller) => controller.setVolume(volume))
+      return {
+        ...state,
+        volume,
+      }
+    }),
   setPlaybackRate: (playbackRate) =>
-    callController((controller) => controller.setPlaybackRate(playbackRate)),
+    set((state) => {
+      callController((controller) => controller.setPlaybackRate(playbackRate))
+      return {
+        ...state,
+        playbackRate,
+      }
+    }),
 }))
 
 export const setPlayerStoreState = (

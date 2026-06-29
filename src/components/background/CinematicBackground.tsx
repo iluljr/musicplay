@@ -11,22 +11,27 @@ const orbs = [
 type CinematicBackgroundProps = {
   animated?: boolean
   transparent?: boolean
-  track: Song
+  track: Song | null
 }
+
+const fallbackPalette: [string, string] = ['#4d82ff', '#67e8f9']
+const fallbackBackground: [string, string] = ['#050816', '#0b1020']
 
 export const CinematicBackground = ({
   animated = true,
   transparent = false,
   track,
 }: CinematicBackgroundProps) => {
-  const [primary, secondary] = getSongPalette(track)
-  const [backgroundStart, backgroundEnd] = getSongBackground(track)
+  const [primary, secondary] = track ? getSongPalette(track) : fallbackPalette
+  const [backgroundStart, backgroundEnd] = track
+    ? getSongBackground(track)
+    : fallbackBackground
 
   return (
     <div className="absolute inset-0 overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div
-          key={track.id}
+          key={track?.id ?? 'empty-library'}
           initial={{ opacity: 0, scale: 1.06 }}
           animate={{ opacity: transparent ? 0.55 : 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.98 }}
@@ -85,7 +90,7 @@ export const CinematicBackground = ({
         />
       ))}
       <motion.div
-        key={`${track.id}-glow`}
+        key={`${track?.id ?? 'empty-library'}-glow`}
         initial={{ opacity: 0 }}
         animate={{ opacity: transparent ? 0.28 : 0.42 }}
         exit={{ opacity: 0 }}

@@ -20,8 +20,7 @@ export const buildObsSearchParams = (settings: AppSettings) => {
 
 export const buildObsSourceUrl = (settings: AppSettings) => {
   const origin = window.location.origin
-  const pathname = `${window.location.pathname.replace(/\/+$/, '') || ''}/`
-    .replace(/\/+$/, '/')
+  const pathname = '/overlay'
   const searchParams = buildObsSearchParams(settings)
 
   return `${origin}${pathname}?${searchParams.toString()}`

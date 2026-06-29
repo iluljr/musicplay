@@ -16,6 +16,10 @@ export const router = createBrowserRouter([
         element: <HomePage />,
       },
       {
+        path: 'overlay',
+        element: <HomePage />,
+      },
+      {
         path: 'library',
         element: <LibraryPage />,
       },

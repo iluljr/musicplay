@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useLocation, useOutlet } from 'react-router-dom'
 import { AppSidebar } from '@/components/layout/AppSidebar'
@@ -10,20 +10,28 @@ import { useDisplayMode } from '@/hooks/useDisplayMode'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useObsEnvironment } from '@/hooks/useObsEnvironment'
 import { usePageVisibility } from '@/hooks/usePageVisibility'
+import { useRealtimePlayerSync } from '@/hooks/useRealtimePlayerSync'
 import { useViewportSize } from '@/hooks/useViewportSize'
+import { useLibraryStore } from '@/stores/libraryStore'
 import { usePlayerStore } from '@/stores/playerStore'
 
 export const AppLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const location = useLocation()
   const outlet = useOutlet()
-  const [renderedOutlet, setRenderedOutlet] = useState(outlet)
+  const lastNonNullOutlet = useRef(outlet)
   const displayMode = useDisplayMode()
   const isPageVisible = usePageVisibility()
+  const isLibraryLoading = useLibraryStore((state) => state.loading)
   const activeSong = usePlayerStore((state) => state.tracks[state.activeIndex] ?? null)
 
+  if (outlet) {
+    lastNonNullOutlet.current = outlet
+  }
+
   useAppBootstrap()
-  useAudioEngine()
+  useRealtimePlayerSync()
+  useAudioEngine(location.pathname !== '/overlay')
   useKeyboardShortcuts()
   useViewportSize()
   useObsEnvironment({
@@ -34,13 +42,7 @@ export const AppLayout = () => {
     setIsSidebarOpen(false)
   }, [location.pathname])
 
-  useEffect(() => {
-    if (outlet) {
-      setRenderedOutlet(outlet)
-    }
-  }, [outlet])
-
-  if (!activeSong) {
+  if (isLibraryLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-base-950 text-white">
         Loading MusicPlay...
@@ -85,13 +87,13 @@ export const AppLayout = () => {
         >
           <AnimatePresence mode="wait">
             <motion.div
-              key={location.pathname || 'home'}
+              key={`${location.pathname}${location.search}` || 'home'}
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             >
-              {renderedOutlet ?? (
+              {outlet ?? lastNonNullOutlet.current ?? (
                 <div className="flex min-h-[40vh] items-center justify-center text-white/45">
                   Loading view...
                 </div>
@@ -101,7 +103,7 @@ export const AppLayout = () => {
         </div>
       </div>
 
-      {showShell ? <FloatingPlayer /> : null}
+      {showShell && activeSong ? <FloatingPlayer /> : null}
     </main>
   )
 }

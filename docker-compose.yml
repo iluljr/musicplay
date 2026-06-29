@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: musicplay-backend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uploads:/app/backend/uploads
+      - ./backend/data:/app/backend/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:3001
+        VITE_WS_URL: ws://localhost:3001/ws/player
+    container_name: musicplay-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "4173:4173"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4173"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

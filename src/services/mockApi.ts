@@ -1,21 +1,13 @@
-import { mockPlaylists } from '@/mocks/playlists'
-import { mockSettings } from '@/mocks/settings'
-import { mediaLibraryService } from '@/services/mediaLibrary'
-
-const delay = async (duration = 320) =>
-  new Promise((resolve) => window.setTimeout(resolve, duration))
+import { backendApi } from '@/services/backendApi'
 
 export const mockApi = {
   async getSongs() {
-    await delay(420)
-    return mediaLibraryService.listSongs()
+    return backendApi.getSongs()
   },
   async getPlaylists() {
-    await delay(380)
-    return structuredClone(mockPlaylists)
+    return backendApi.getPlaylists()
   },
   async getSettings() {
-    await delay(240)
-    return structuredClone(mockSettings)
+    return backendApi.getSettings()
   },
 }

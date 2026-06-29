@@ -3,7 +3,10 @@ import { Copy, ExternalLink, MonitorUp, WandSparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { GlassPanel } from '@/components/common/GlassPanel'
 import { RangeInput } from '@/components/common/RangeInput'
+import { backendApi } from '@/services/backendApi'
+import { playbackSession } from '@/services/playbackSession'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { setPlayerStoreState } from '@/stores/playerStore'
 import { buildObsSearchParams, buildObsSourceUrl } from '@/utils/obs'
 
 const selectClassName =
@@ -12,10 +15,14 @@ const selectClassName =
 export const SettingsPage = () => {
   const { loading, settings, updateSetting } = useSettingsStore()
   const [copied, setCopied] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
   const resolvedSettings = settings
 
   const obsPreviewPath = useMemo(
-    () => (resolvedSettings ? `/?${buildObsSearchParams(resolvedSettings).toString()}` : '/'),
+    () =>
+      resolvedSettings
+        ? `/overlay?${buildObsSearchParams(resolvedSettings).toString()}`
+        : '/overlay',
     [resolvedSettings],
   )
 
@@ -98,6 +105,43 @@ export const SettingsPage = () => {
               onChange={(event) => updateSetting('volume', Number(event.target.value))}
               value={resolvedSettings.volume}
             />
+          </div>
+          <div className="rounded-[1.5rem] border border-amber-300/12 bg-amber-300/5 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">Reset Playback Session</p>
+                <p className="text-sm leading-6 text-white/50">
+                  Paksa semua tab dan overlay kembali ke kondisi awal: stop, time
+                  ke 0, dan tidak ada player yang tetap jalan.
+                </p>
+              </div>
+              <button
+                className="rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-sm text-amber-100 transition-colors hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isResetting}
+                onClick={async () => {
+                  setIsResetting(true)
+                  playbackSession.clearGlobalMaster()
+                  setPlayerStoreState({
+                    playbackStatus: 'idle',
+                    currentTime: 0,
+                    isShuffleEnabled: false,
+                    repeatMode: 'all',
+                    volume: 72,
+                    playbackRate: 1,
+                    error: null,
+                  })
+
+                  try {
+                    await backendApi.resetPlayer()
+                  } finally {
+                    setIsResetting(false)
+                  }
+                }}
+                type="button"
+              >
+                {isResetting ? 'Resetting...' : 'Reset Player'}
+              </button>
+            </div>
           </div>
         </GlassPanel>
 

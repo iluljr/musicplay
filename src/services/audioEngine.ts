@@ -1,175 +1,146 @@
-import {
-  bindPlayerController,
-  setPlayerStoreState,
-  usePlayerStore,
-  type PlayerController,
-} from '@/stores/playerStore'
+import { playerGateway } from '@/services/playerGateway'
+import { playbackSession } from '@/services/playbackSession'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { usePlayerStore } from '@/stores/playerStore'
 import type { Song } from '@/types/song'
 import { createToneAudioUrl } from '@/utils/audio'
 
-type LoadTrackOptions = {
-  autoplay?: boolean
-  preserveTime?: boolean
-}
-
-class AudioEngine implements PlayerController {
+class AudioEngine {
   private audio = new Audio()
-  private frameId: number | null = null
-  private isMounted = false
+  private enabled = false
+  private mounted = false
+  private syncing = false
+  private telemetryFrame: number | null = null
+  private lastTelemetryAt = 0
+  private lastSentPlaybackStatus: 'playing' | 'paused' | 'stopped' | 'ended' | null = null
+  private forcedPlaybackStatus: 'stopped' | null = null
   private sourceByTrackId = new Map<string, string>()
+  private unsubscribe: (() => void) | null = null
 
   constructor() {
     this.audio.preload = 'auto'
-    this.audio.addEventListener('loadedmetadata', this.handleLoadedMetadata)
-    this.audio.addEventListener('play', this.handlePlay)
-    this.audio.addEventListener('pause', this.handlePause)
-    this.audio.addEventListener('ended', this.handleEnded)
-    this.audio.addEventListener('volumechange', this.handleVolumeChange)
-    this.audio.addEventListener('ratechange', this.handleRateChange)
-    this.audio.addEventListener('seeking', this.handleSeeking)
-    this.audio.addEventListener('seeked', this.handleSeeked)
-    this.audio.addEventListener('waiting', this.handleWaiting)
-    this.audio.addEventListener('canplay', this.handleCanPlay)
-    this.audio.addEventListener('error', this.handleError)
-    this.audio.addEventListener('timeupdate', this.syncCurrentTime)
-    document.addEventListener('visibilitychange', this.handleVisibilityChange)
+    this.audio.addEventListener('play', () => this.flushTelemetry(true, 'playing'))
+    this.audio.addEventListener('pause', () => {
+      const nextStatus = this.forcedPlaybackStatus ?? 'paused'
+      this.forcedPlaybackStatus = null
+      this.flushTelemetry(true, nextStatus)
+    })
+    this.audio.addEventListener('ended', () => this.flushTelemetry(true, 'ended'))
+    this.audio.addEventListener('timeupdate', () => this.queueTelemetry())
   }
 
-  mount = () => {
-    if (this.isMounted) {
-      return
-    }
+  mount = (enabled: boolean) => {
+    this.enabled = enabled
 
-    this.isMounted = true
-    bindPlayerController(this)
-
-    const state = usePlayerStore.getState()
-    this.ensureTrackSources()
-    this.audio.volume = state.volume / 100
-    this.audio.playbackRate = state.playbackRate
-    this.loadTrack(state.activeIndex, { autoplay: false, preserveTime: false })
-  }
-
-  play = async () => {
-    const state = usePlayerStore.getState()
-
-    if (!this.audio.src) {
-      this.loadTrack(state.activeIndex, { autoplay: true, preserveTime: true })
-      return
-    }
-
-    try {
-      await this.audio.play()
-    } catch {
-      setPlayerStoreState({
-        playbackStatus: 'error',
-        error: 'Playback could not be started.',
+    if (!this.mounted) {
+      this.mounted = true
+      this.unsubscribe = usePlayerStore.subscribe((state) => {
+        void this.reconcile(state)
       })
     }
-  }
 
-  pause = () => {
-    this.audio.pause()
-  }
-
-  stop = () => {
-    this.audio.pause()
-    this.audio.currentTime = 0
-    this.syncCurrentTime()
-    setPlayerStoreState({
-      playbackStatus: 'stopped',
-      currentTime: 0,
-    })
-  }
-
-  previous = () => {
-    const state = usePlayerStore.getState()
-    const shouldAutoplay =
-      state.playbackStatus === 'playing' || state.playbackStatus === 'loading'
-
-    if (this.audio.currentTime > 2.5) {
-      this.seek(0)
+    if (!enabled) {
+      this.syncing = true
+      this.audio.pause()
+      this.syncing = false
       return
     }
 
-    const previousIndex = this.getAdjacentIndex(-1, state)
-    this.loadTrack(previousIndex, { autoplay: shouldAutoplay })
+    void this.reconcile(usePlayerStore.getState())
   }
 
-  next = () => {
-    const state = usePlayerStore.getState()
-    const shouldAutoplay =
-      state.playbackStatus === 'playing' || state.playbackStatus === 'loading'
-    const nextIndex = this.getAdjacentIndex(1, state)
-    this.loadTrack(nextIndex, { autoplay: shouldAutoplay })
-  }
+  private async reconcile(state: ReturnType<typeof usePlayerStore.getState>) {
+    if (!this.enabled || state.tracks.length === 0) {
+      return
+    }
 
-  playTrackAtIndex = (index: number) => {
-    this.loadTrack(index, { autoplay: true })
-  }
+    const autoPlayEnabled = useSettingsStore.getState().settings?.autoPlay ?? true
 
-  seek = (timeInSeconds: number) => {
-    const duration = this.audio.duration || usePlayerStore.getState().duration
-    const clampedTime = Math.max(0, Math.min(timeInSeconds, duration || 0))
-
-    this.audio.currentTime = clampedTime
-    this.syncCurrentTime()
-    setPlayerStoreState({ currentTime: clampedTime })
-  }
-
-  setVolume = (volume: number) => {
-    const normalizedVolume = Math.max(0, Math.min(volume, 100))
-    this.audio.volume = normalizedVolume / 100
-    setPlayerStoreState({ volume: normalizedVolume })
-  }
-
-  setPlaybackRate = (playbackRate: number) => {
-    const normalizedRate = Math.max(0.5, Math.min(playbackRate, 2))
-    this.audio.playbackRate = normalizedRate
-    setPlayerStoreState({ playbackRate: normalizedRate })
-  }
-
-  loadTrack = (index: number, options: LoadTrackOptions = {}) => {
-    const { autoplay = false, preserveTime = false } = options
-    const state = usePlayerStore.getState()
-    const track = state.tracks[index]
-
+    const track = state.tracks[state.activeIndex]
     if (!track) {
       return
     }
 
     this.ensureTrackSource(track)
     const source = this.sourceByTrackId.get(track.id)
-
     if (!source) {
       return
     }
 
-    const shouldKeepCurrentTime = preserveTime && state.activeIndex === index
-    const nextTime = shouldKeepCurrentTime ? state.currentTime : 0
-
-    setPlayerStoreState({
-      activeIndex: index,
-      currentTime: nextTime,
-      duration: 0,
-      isReady: false,
-      playbackStatus: autoplay ? 'loading' : 'paused',
-      error: null,
-    })
-
-    this.cancelAnimationFrame()
-    this.audio.src = source
-    this.audio.load()
-    this.audio.currentTime = nextTime
-
-    if (autoplay) {
-      void this.play()
+    if (this.audio.src !== source) {
+      this.syncing = true
+      this.audio.src = source
+      if (state.currentTime > 0) {
+        this.audio.addEventListener(
+          'loadedmetadata',
+          () => {
+            this.syncing = true
+            this.audio.currentTime = state.currentTime
+            this.syncing = false
+          },
+          { once: true },
+        )
+      }
+      this.syncing = false
     }
-  }
 
-  private ensureTrackSources() {
-    for (const track of usePlayerStore.getState().tracks) {
-      this.ensureTrackSource(track)
+    if (Math.abs(this.audio.volume * 100 - state.volume) > 1) {
+      this.audio.volume = state.volume / 100
+    }
+
+    if (Math.abs(this.audio.playbackRate - state.playbackRate) > 0.01) {
+      this.audio.playbackRate = state.playbackRate
+    }
+
+    const canResyncWhilePlaying =
+      state.playbackStatus !== 'playing' || Math.abs(this.audio.currentTime - state.currentTime) > 2.5
+
+    if (canResyncWhilePlaying && Math.abs(this.audio.currentTime - state.currentTime) > 0.75) {
+      this.syncing = true
+      this.audio.currentTime = state.currentTime
+      this.syncing = false
+    }
+
+    const shouldPlay = state.playbackStatus === 'playing' || state.playbackStatus === 'loading'
+    const shouldPause = ['paused', 'stopped', 'ended', 'idle', 'error'].includes(state.playbackStatus)
+    const canOwnPlayback =
+      playbackSession.isMaster() ||
+      (!playbackSession.hasActiveMaster() && autoPlayEnabled && playbackSession.claimMaster())
+
+    if (!canOwnPlayback && !this.audio.paused) {
+      this.syncing = true
+      this.audio.pause()
+      this.syncing = false
+    }
+
+    if (shouldPlay && this.audio.paused && canOwnPlayback) {
+      try {
+        await this.audio.play()
+        this.flushTelemetry(true, 'playing')
+      } catch {
+        // Autoplay can fail on browser policy; controller UI remains functional.
+      }
+    }
+
+    if (shouldPause && !this.audio.paused) {
+      if (state.playbackStatus === 'stopped') {
+        this.forcedPlaybackStatus = 'stopped'
+      }
+      this.audio.pause()
+    }
+
+    if (state.playbackStatus === 'stopped') {
+      this.forcedPlaybackStatus = 'stopped'
+    }
+
+    if (state.playbackStatus === 'stopped' && this.audio.currentTime !== 0) {
+      this.syncing = true
+      this.audio.currentTime = 0
+      this.syncing = false
+    }
+
+    if (state.playbackStatus === 'stopped') {
+      this.flushTelemetry(true, 'stopped')
     }
   }
 
@@ -181,168 +152,45 @@ class AudioEngine implements PlayerController {
     if (track.audio.startsWith('demo://tone/')) {
       const payload = track.audio.replace('demo://tone/', '')
       const [frequency, duration] = payload.split('/').map(Number)
-
-      this.sourceByTrackId.set(
-        track.id,
-        createToneAudioUrl(frequency, duration),
-      )
+      this.sourceByTrackId.set(track.id, createToneAudioUrl(frequency, duration))
       return
     }
 
     this.sourceByTrackId.set(track.id, track.audio)
   }
 
-  private getAdjacentIndex(direction: -1 | 1, state: ReturnType<typeof usePlayerStore.getState>) {
-    const { activeIndex, isShuffleEnabled, tracks } = state
-
-    if (isShuffleEnabled && tracks.length > 1) {
-      const availableIndexes = tracks
-        .map((_, index) => index)
-        .filter((index) => index !== activeIndex)
-
-      return availableIndexes[Math.floor(Math.random() * availableIndexes.length)]
-    }
-
-    return (activeIndex + direction + tracks.length) % tracks.length
-  }
-
-  private handleLoadedMetadata = () => {
-    setPlayerStoreState({
-      duration: Number.isFinite(this.audio.duration) ? this.audio.duration : 0,
-      currentTime: this.audio.currentTime,
-      isReady: true,
-    })
-  }
-
-  private handlePlay = () => {
-    setPlayerStoreState({
-      playbackStatus: 'playing',
-      error: null,
-    })
-    this.startAnimationFrame()
-  }
-
-  private handlePause = () => {
-    const { playbackStatus } = usePlayerStore.getState()
-
-    if (playbackStatus !== 'stopped' && playbackStatus !== 'ended') {
-      setPlayerStoreState({ playbackStatus: 'paused' })
-    }
-
-    this.cancelAnimationFrame()
-    this.syncCurrentTime()
-  }
-
-  private handleEnded = () => {
-    const state = usePlayerStore.getState()
-
-    if (state.repeatMode === 'one') {
-      this.seek(0)
-      void this.play()
+  private queueTelemetry() {
+    if (this.telemetryFrame !== null || this.audio.paused || this.audio.ended) {
       return
     }
 
-    const isLastTrack = !state.isShuffleEnabled && state.activeIndex === state.tracks.length - 1
+    this.telemetryFrame = window.requestAnimationFrame(() => {
+      this.telemetryFrame = null
+      this.flushTelemetry(false, 'playing')
+    })
+  }
 
-    if (state.repeatMode === 'off' && isLastTrack) {
-      setPlayerStoreState({
-        playbackStatus: 'ended',
-        currentTime: this.audio.duration || state.duration,
-      })
+  private flushTelemetry(force: boolean, playbackStatus: 'playing' | 'paused' | 'stopped' | 'ended') {
+    if (!this.enabled || this.syncing) {
       return
     }
 
-    const nextIndex = this.getAdjacentIndex(1, state)
-    this.loadTrack(nextIndex, { autoplay: true })
-  }
-
-  private handleVolumeChange = () => {
-    setPlayerStoreState({
-      volume: Math.round(this.audio.volume * 100),
-    })
-  }
-
-  private handleRateChange = () => {
-    setPlayerStoreState({
-      playbackRate: this.audio.playbackRate,
-    })
-  }
-
-  private handleSeeking = () => {
-    setPlayerStoreState({
-      currentTime: this.audio.currentTime,
-    })
-  }
-
-  private handleSeeked = () => {
-    this.syncCurrentTime()
-  }
-
-  private handleWaiting = () => {
-    const { playbackStatus } = usePlayerStore.getState()
-
-    if (playbackStatus === 'playing') {
-      setPlayerStoreState({ playbackStatus: 'loading' })
-    }
-  }
-
-  private handleCanPlay = () => {
-    const { playbackStatus } = usePlayerStore.getState()
-
-    if (playbackStatus === 'loading' && !this.audio.paused) {
-      setPlayerStoreState({ playbackStatus: 'playing' })
-    }
-  }
-
-  private handleError = () => {
-    this.cancelAnimationFrame()
-    setPlayerStoreState({
-      playbackStatus: 'error',
-      error: 'Audio source failed to load.',
-    })
-  }
-
-  private handleVisibilityChange = () => {
-    if (document.hidden) {
-      this.cancelAnimationFrame()
+    const now = performance.now()
+    if (
+      !force &&
+      now - this.lastTelemetryAt < 200 &&
+      this.lastSentPlaybackStatus === playbackStatus
+    ) {
       return
     }
 
-    if (!this.audio.paused) {
-      this.startAnimationFrame()
-    } else {
-      this.syncCurrentTime()
-    }
-  }
-
-  private syncCurrentTime = () => {
-    setPlayerStoreState({
+    this.lastTelemetryAt = now
+    this.lastSentPlaybackStatus = playbackStatus
+    playerGateway.sendTelemetry({
       currentTime: this.audio.currentTime,
       duration: Number.isFinite(this.audio.duration) ? this.audio.duration : 0,
+      playbackStatus,
     })
-  }
-
-  private startAnimationFrame() {
-    this.cancelAnimationFrame()
-
-    const tick = () => {
-      if (document.hidden || this.audio.paused) {
-        this.frameId = null
-        return
-      }
-
-      this.syncCurrentTime()
-      this.frameId = window.requestAnimationFrame(tick)
-    }
-
-    this.frameId = window.requestAnimationFrame(tick)
-  }
-
-  private cancelAnimationFrame() {
-    if (this.frameId !== null) {
-      window.cancelAnimationFrame(this.frameId)
-      this.frameId = null
-    }
   }
 }
 

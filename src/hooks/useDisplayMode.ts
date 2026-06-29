@@ -25,19 +25,22 @@ export const useDisplayMode = (): DisplayMode => {
 
   return useMemo(() => {
     const searchParams = new URLSearchParams(location.search)
+    const routeOverlay = location.pathname === '/overlay'
     const supportsObsSurface = location.pathname === '/'
     const overlayParam = searchParams.get('overlay')
     const minimalParam = searchParams.get('minimal')
     const overlayFromUrl = parseBooleanParam(overlayParam, false)
     const minimalFromUrl = parseBooleanParam(minimalParam, false)
     const overlaySource =
-      overlayParam !== null
-        ? overlayFromUrl
-          ? 'url'
-          : 'none'
-        : settings?.obsMode && supportsObsSurface
-          ? 'settings'
-          : 'none'
+      routeOverlay
+        ? 'url'
+        : overlayParam !== null
+          ? overlayFromUrl
+            ? 'url'
+            : 'none'
+          : settings?.obsMode && supportsObsSurface
+            ? 'settings'
+            : 'none'
     const isOverlay = overlaySource !== 'none'
     const isMinimal =
       minimalParam !== null
