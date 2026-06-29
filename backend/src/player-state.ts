@@ -1,4 +1,4 @@
-import type { PlaybackStatus, PlayerCommandMessage, PlayerState, RepeatMode, Song } from './types.js'
+import type { PlayerCommandMessage, PlayerState, RepeatMode, Song } from './types.js'
 
 type Broadcast = (playerState: PlayerState) => void
 
@@ -32,22 +32,23 @@ export class PlayerStateManager {
   }
 
   private songs: Song[] = []
+  private baseQueueSongIds: string[] = []
+  private hasCustomQueue = false
   private listeners = new Set<Broadcast>()
 
   private createSequentialQueueSongIds() {
     return this.songs.map((song) => song.id)
   }
 
-  private createShuffleQueueSongIds(currentSongId: string | null) {
-    const songIds = this.songs.map((song) => song.id)
+  private createShuffleQueueSongIds(queueSongIds: string[], currentSongId: string | null) {
+    const songIds = [...queueSongIds]
 
     if (songIds.length <= 1) {
       return songIds
     }
 
-    const fallbackSongId = currentSongId && songIds.includes(currentSongId)
-      ? currentSongId
-      : songIds[0]
+    const fallbackSongId =
+      currentSongId && songIds.includes(currentSongId) ? currentSongId : songIds[0]
     const remainingSongIds = shuffleArray(
       songIds.filter((songId) => songId !== fallbackSongId),
     )
@@ -55,24 +56,85 @@ export class PlayerStateManager {
     return [fallbackSongId, ...remainingSongIds]
   }
 
-  setSongs(songs: Song[]) {
-    this.songs = songs
-    const previousSongId = this.state.activeSongId
-    const nextSongIds = songs.map((song) => song.id)
-    const previousQueueSongIds = this.state.queueSongIds.filter((songId) =>
-      nextSongIds.includes(songId),
-    )
+  private getResolvedBaseQueueSongIds() {
+    return this.baseQueueSongIds.length > 0
+      ? this.baseQueueSongIds
+      : this.createSequentialQueueSongIds()
+  }
 
+  private getEffectiveQueueSongIds() {
+    return this.state.queueSongIds.length > 0
+      ? this.state.queueSongIds
+      : this.createSequentialQueueSongIds()
+  }
+
+  private syncVisibleQueueSongIds(currentSongId: string | null) {
+    const baseQueueSongIds = this.getResolvedBaseQueueSongIds()
     this.state.queueSongIds = this.state.isShuffleEnabled
-      ? [
-          ...previousQueueSongIds,
-          ...nextSongIds.filter((songId) => !previousQueueSongIds.includes(songId)),
-        ]
-      : nextSongIds
-    const nextIndex = previousSongId ? songs.findIndex((song) => song.id === previousSongId) : 0
-    this.state.activeIndex = nextIndex >= 0 ? nextIndex : 0
-    this.state.activeSongId = songs[this.state.activeIndex]?.id ?? null
-    this.state.duration = songs[this.state.activeIndex]?.duration ?? 0
+      ? this.createShuffleQueueSongIds(baseQueueSongIds, currentSongId)
+      : baseQueueSongIds
+  }
+
+  private applyActiveSong(nextSongId: string | null, shouldPlay = false) {
+    if (!nextSongId) {
+      this.state.activeSongId = null
+      this.state.activeIndex = 0
+      this.state.currentTime = 0
+      this.state.duration = 0
+      if (shouldPlay) {
+        this.state.playbackStatus = 'idle'
+      }
+      return
+    }
+
+    const nextSongIndex = this.songs.findIndex((song) => song.id === nextSongId)
+    if (nextSongIndex < 0) {
+      return
+    }
+
+    this.state.activeSongId = nextSongId
+    this.state.activeIndex = nextSongIndex
+    this.state.currentTime = 0
+    this.state.duration = this.songs[nextSongIndex]?.duration ?? 0
+    if (shouldPlay) {
+      this.state.playbackStatus = 'playing'
+    }
+  }
+
+  setSongs(songs: Song[]) {
+    const previousSongIds = this.songs.map((song) => song.id)
+    const previousSongId = this.state.activeSongId
+
+    this.songs = songs
+
+    if (!this.hasCustomQueue) {
+      const hadFullLibraryQueue =
+        this.baseQueueSongIds.length === 0 ||
+        (this.baseQueueSongIds.length === previousSongIds.length &&
+          this.baseQueueSongIds.every((songId) => previousSongIds.includes(songId)))
+
+      this.baseQueueSongIds = hadFullLibraryQueue
+        ? this.createSequentialQueueSongIds()
+        : this.baseQueueSongIds.filter((songId) => this.songs.some((song) => song.id === songId))
+    } else {
+      this.baseQueueSongIds = this.baseQueueSongIds.filter((songId) =>
+        this.songs.some((song) => song.id === songId),
+      )
+
+      if (this.baseQueueSongIds.length === 0) {
+        this.hasCustomQueue = false
+        this.baseQueueSongIds = this.createSequentialQueueSongIds()
+      }
+    }
+
+    this.syncVisibleQueueSongIds(previousSongId)
+
+    const nextSongId =
+      previousSongId && this.songs.some((song) => song.id === previousSongId)
+        ? previousSongId
+        : this.state.queueSongIds[0] ?? null
+
+    this.applyActiveSong(nextSongId)
     this.state.updatedAt = nowIso()
     this.emit()
   }
@@ -88,10 +150,12 @@ export class PlayerStateManager {
   }
 
   reset() {
+    this.hasCustomQueue = false
+    this.baseQueueSongIds = this.createSequentialQueueSongIds()
     this.state = {
       activeSongId: this.songs[0]?.id ?? null,
       activeIndex: 0,
-      queueSongIds: this.createSequentialQueueSongIds(),
+      queueSongIds: this.baseQueueSongIds,
       playbackStatus: 'idle',
       currentTime: 0,
       duration: this.songs[0]?.duration ?? 0,
@@ -164,9 +228,7 @@ export class PlayerStateManager {
         break
       case 'shuffle':
         this.state.isShuffleEnabled = !this.state.isShuffleEnabled
-        this.state.queueSongIds = this.state.isShuffleEnabled
-          ? this.createShuffleQueueSongIds(this.state.activeSongId)
-          : this.createSequentialQueueSongIds()
+        this.syncVisibleQueueSongIds(this.state.activeSongId)
         break
       case 'repeat':
         this.state.repeatMode = this.nextRepeatMode(this.state.repeatMode)
@@ -174,12 +236,29 @@ export class PlayerStateManager {
       case 'playSongId': {
         const nextIndex = this.songs.findIndex((song) => song.id === message.songId)
         if (nextIndex >= 0) {
-          this.state.activeIndex = nextIndex
-          this.state.activeSongId = this.songs[nextIndex].id
-          this.state.duration = this.songs[nextIndex].duration
-          this.state.currentTime = 0
-          this.state.playbackStatus = 'playing'
+          this.applyActiveSong(this.songs[nextIndex].id, true)
         }
+        break
+      }
+      case 'setQueue': {
+        const nextBaseQueueSongIds = message.songIds.filter((songId, index) => {
+          return (
+            this.songs.some((song) => song.id === songId) &&
+            message.songIds.indexOf(songId) === index
+          )
+        })
+
+        this.hasCustomQueue = true
+        this.baseQueueSongIds =
+          nextBaseQueueSongIds.length > 0 ? nextBaseQueueSongIds : this.createSequentialQueueSongIds()
+        this.syncVisibleQueueSongIds(message.startSongId ?? this.state.activeSongId)
+
+        const nextSongId =
+          message.startSongId && this.state.queueSongIds.includes(message.startSongId)
+            ? message.startSongId
+            : this.state.queueSongIds[0] ?? null
+
+        this.applyActiveSong(nextSongId, message.shouldPlay ?? false)
         break
       }
       default:
@@ -191,33 +270,20 @@ export class PlayerStateManager {
   }
 
   private move(direction: -1 | 1) {
-    if (this.songs.length === 0) {
+    const effectiveQueueSongIds = this.getEffectiveQueueSongIds()
+
+    if (this.songs.length === 0 || effectiveQueueSongIds.length === 0) {
       return
     }
 
-    if (this.state.isShuffleEnabled && this.state.queueSongIds.length > 0) {
-      const currentQueueIndex = this.state.activeSongId
-        ? this.state.queueSongIds.indexOf(this.state.activeSongId)
-        : -1
-      const safeQueueIndex = currentQueueIndex >= 0 ? currentQueueIndex : 0
-      const nextQueueIndex =
-        (safeQueueIndex + direction + this.state.queueSongIds.length) %
-        this.state.queueSongIds.length
-      const nextSongId = this.state.queueSongIds[nextQueueIndex]
-      const nextSongIndex = this.songs.findIndex((song) => song.id === nextSongId)
+    const currentQueueIndex = this.state.activeSongId
+      ? effectiveQueueSongIds.indexOf(this.state.activeSongId)
+      : -1
+    const safeQueueIndex = currentQueueIndex >= 0 ? currentQueueIndex : 0
+    const nextQueueIndex =
+      (safeQueueIndex + direction + effectiveQueueSongIds.length) % effectiveQueueSongIds.length
 
-      if (nextSongIndex >= 0) {
-        this.state.activeIndex = nextSongIndex
-      }
-    } else {
-      this.state.activeIndex =
-        (this.state.activeIndex + direction + this.songs.length) % this.songs.length
-    }
-
-    this.state.activeSongId = this.songs[this.state.activeIndex]?.id ?? null
-    this.state.duration = this.songs[this.state.activeIndex]?.duration ?? 0
-    this.state.currentTime = 0
-    this.state.playbackStatus = 'playing'
+    this.applyActiveSong(effectiveQueueSongIds[nextQueueIndex] ?? null, true)
   }
 
   private nextRepeatMode(current: RepeatMode): RepeatMode {
@@ -227,7 +293,9 @@ export class PlayerStateManager {
   }
 
   private handleEndedPlayback() {
-    if (this.songs.length === 0) {
+    const effectiveQueueSongIds = this.getEffectiveQueueSongIds()
+
+    if (this.songs.length === 0 || effectiveQueueSongIds.length === 0) {
       this.state.playbackStatus = 'ended'
       this.state.currentTime = 0
       return
@@ -239,11 +307,9 @@ export class PlayerStateManager {
       return
     }
 
-    const isLastInQueue = this.state.isShuffleEnabled
-      ? this.state.activeSongId !== null &&
-        this.state.queueSongIds.indexOf(this.state.activeSongId) ===
-          this.state.queueSongIds.length - 1
-      : this.state.activeIndex === this.songs.length - 1
+    const isLastInQueue =
+      this.state.activeSongId !== null &&
+      effectiveQueueSongIds.indexOf(this.state.activeSongId) === effectiveQueueSongIds.length - 1
 
     if (this.state.repeatMode === 'off' && isLastInQueue) {
       this.state.currentTime = this.state.duration

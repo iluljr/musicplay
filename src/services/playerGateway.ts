@@ -35,6 +35,7 @@ class PlayerGateway {
   private readonly controller: PlayerController & {
     toggleShuffle: () => void
     cycleRepeatMode: () => void
+    setQueue: (songIds: string[], startSongId?: string, shouldPlay?: boolean) => void
   }
 
   constructor() {
@@ -55,6 +56,14 @@ class PlayerGateway {
         this.send({ type: 'command', command: 'playbackRate', value: playbackRate }),
       toggleShuffle: () => this.send({ type: 'command', command: 'shuffle' }),
       cycleRepeatMode: () => this.send({ type: 'command', command: 'repeat' }),
+      setQueue: (songIds, startSongId, shouldPlay) =>
+        this.send({
+          type: 'command',
+          command: 'setQueue',
+          songIds,
+          startSongId,
+          shouldPlay,
+        }),
     }
   }
 
@@ -101,6 +110,10 @@ class PlayerGateway {
     playbackStatus: PlaybackStatus
   }) {
     this.send({ type: 'telemetry', ...payload })
+  }
+
+  setQueue(songIds: string[], startSongId?: string, shouldPlay?: boolean) {
+    this.controller.setQueue(songIds, startSongId, shouldPlay)
   }
 
   private send(payload: unknown) {

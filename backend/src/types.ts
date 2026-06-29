@@ -67,6 +67,13 @@ export type PlayerCommandMessage =
   | { type: 'command'; command: 'shuffle' }
   | { type: 'command'; command: 'repeat' }
   | { type: 'command'; command: 'playSongId'; songId: string }
+  | {
+      type: 'command'
+      command: 'setQueue'
+      songIds: string[]
+      startSongId?: string
+      shouldPlay?: boolean
+    }
   | { type: 'telemetry'; currentTime: number; duration: number; playbackStatus: PlaybackStatus }
 
 export type SocketOutboundMessage =

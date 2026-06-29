@@ -14,6 +14,7 @@ type PlaylistState = {
   deletePlaylist: (playlistId: string) => Promise<void>
   duplicatePlaylist: (playlistId: string) => Promise<void>
   reorderSongs: (playlistId: string, fromIndex: number, toIndex: number) => Promise<void>
+  setPlaylistSongs: (playlistId: string, songIds: string[]) => Promise<void>
 }
 
 export const usePlaylistStore = create<PlaylistState>((set) => ({
@@ -21,17 +22,23 @@ export const usePlaylistStore = create<PlaylistState>((set) => ({
   loading: true,
   activePlaylistId: null,
   setPlaylists: (playlists) =>
-    set({
+    set((state) => ({
       playlists,
-      activePlaylistId: playlists[0]?.id ?? null,
-    }),
+      activePlaylistId:
+        playlists.find((playlist) => playlist.id === state.activePlaylistId)?.id ??
+        state.activePlaylistId ??
+        playlists[0]?.id ??
+        null,
+    })),
   setLoading: (loading) => set({ loading }),
   selectPlaylist: (playlistId) => set({ activePlaylistId: playlistId }),
   createPlaylist: async (name) => {
+    const previousPlaylistIds = usePlaylistStore.getState().playlists.map((playlist) => playlist.id)
     const playlists = await backendApi.createPlaylist(name)
+    const createdPlaylist = playlists.find((playlist) => !previousPlaylistIds.includes(playlist.id))
     set({
       playlists,
-      activePlaylistId: playlists[0]?.id ?? null,
+      activePlaylistId: createdPlaylist?.id ?? playlists[0]?.id ?? null,
     })
   },
   renamePlaylist: async (playlistId, name) => {
@@ -52,14 +59,23 @@ export const usePlaylistStore = create<PlaylistState>((set) => ({
     }))
   },
   duplicatePlaylist: async (playlistId) => {
+    const previousPlaylistIds = usePlaylistStore.getState().playlists.map((playlist) => playlist.id)
     const playlists = await backendApi.duplicatePlaylist(playlistId)
+    const createdPlaylist = playlists.find((playlist) => !previousPlaylistIds.includes(playlist.id))
     set({
       playlists,
-      activePlaylistId: playlists[0]?.id ?? null,
+      activePlaylistId: createdPlaylist?.id ?? playlists[0]?.id ?? null,
     })
   },
   reorderSongs: async (playlistId, fromIndex, toIndex) => {
     const playlists = await backendApi.reorderPlaylistSongs(playlistId, fromIndex, toIndex)
+    set((state) => ({
+      playlists,
+      activePlaylistId: state.activePlaylistId ?? playlists[0]?.id ?? null,
+    }))
+  },
+  setPlaylistSongs: async (playlistId, songIds) => {
+    const playlists = await backendApi.updatePlaylist(playlistId, { songs: songIds })
     set((state) => ({
       playlists,
       activePlaylistId: state.activePlaylistId ?? playlists[0]?.id ?? null,
