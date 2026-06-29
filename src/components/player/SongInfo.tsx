@@ -64,15 +64,6 @@ export const SongInfo = ({ song }: SongInfoProps) => {
           {song.artist} · {song.album}
         </motion.p>
       </div>
-      <motion.p
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55, delay: 0.2 }}
-        className="max-w-xl text-sm leading-6 text-white/42 sm:leading-7 md:text-base"
-      >
-        Stream-safe player surface with modular transport, synced lyrics, queue
-        management, and an OBS-ready visual language.
-      </motion.p>
       {error ? (
         <motion.p
           initial={{ opacity: 0 }}
