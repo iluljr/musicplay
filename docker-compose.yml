@@ -6,7 +6,9 @@ services:
       network: host
     container_name: musicplay-backend
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
+    expose:
+      - "3001"
     volumes:
       - ./uploads:/app/backend/uploads
       - ./backend/data:/app/backend/data
@@ -36,7 +38,9 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "4173:4173"
+      - "127.0.0.1:4173:4173"
+    expose:
+      - "4173"
     healthcheck:
       test:
         [
@@ -49,3 +53,35 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-bookworm
+    container_name: musicplay-nginx
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/templates:/etc/musicplay/templates:ro
+      - ./infra/nginx/start-nginx.sh:/start-nginx.sh:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    command: ["/bin/sh", "/start-nginx.sh"]
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: musicplay-certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt

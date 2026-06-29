@@ -17,18 +17,19 @@ const getRuntimeApiBaseUrl = () => {
 
   const runtimeProtocol = window.location.protocol
   const runtimeHostname = window.location.hostname
+  const runtimeOrigin = window.location.origin
 
   if (!configuredUrl) {
-    return `${runtimeProtocol}//${runtimeHostname}:3001`
+    return isLocalHostname(runtimeHostname)
+      ? `${runtimeProtocol}//${runtimeHostname}:3001`
+      : runtimeOrigin
   }
 
   try {
     const parsedUrl = new URL(configuredUrl)
 
     if (isLocalHostname(parsedUrl.hostname) && !isLocalHostname(runtimeHostname)) {
-      parsedUrl.protocol = runtimeProtocol
-      parsedUrl.hostname = runtimeHostname
-      return parsedUrl.toString().replace(/\/$/, '')
+      return runtimeOrigin
     }
 
     return configuredUrl
@@ -48,18 +49,19 @@ const getRuntimeWsUrl = () => {
 
   const runtimeProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const runtimeHostname = window.location.hostname
+  const runtimeHost = window.location.host
 
   if (!configuredUrl) {
-    return `${API_BASE_URL.replace(/^http/, 'ws')}/ws/player`
+    return isLocalHostname(runtimeHostname)
+      ? `${API_BASE_URL.replace(/^http/, 'ws')}/ws/player`
+      : `${runtimeProtocol}//${runtimeHost}/ws/player`
   }
 
   try {
     const parsedUrl = new URL(configuredUrl)
 
     if (isLocalHostname(parsedUrl.hostname) && !isLocalHostname(runtimeHostname)) {
-      parsedUrl.protocol = runtimeProtocol
-      parsedUrl.hostname = runtimeHostname
-      return parsedUrl.toString()
+      return `${runtimeProtocol}//${runtimeHost}/ws/player`
     }
 
     return configuredUrl
