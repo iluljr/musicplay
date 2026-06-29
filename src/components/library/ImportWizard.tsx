@@ -111,6 +111,7 @@ export const ImportWizard = ({
   const [step, setStep] = useState<WizardStep>(1)
   const [drafts, setDrafts] = useState<ImportSongDraft[]>([])
   const [isScanning, setIsScanning] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!folderInputRef.current) {
@@ -134,6 +135,7 @@ export const ImportWizard = ({
     setDrafts([])
     setStep(1)
     setIsScanning(false)
+    setSubmitError(null)
   }
 
   const closeWizard = () => {
@@ -405,6 +407,12 @@ export const ImportWizard = ({
                     </div>
                   </div>
 
+                  {submitError ? (
+                    <div className="rounded-[1.25rem] border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                      {submitError}
+                    </div>
+                  ) : null}
+
                   <div className="flex flex-wrap justify-end gap-3">
                     <button
                       className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/65"
@@ -417,8 +425,18 @@ export const ImportWizard = ({
                       className="rounded-full border border-accent-300/30 bg-accent-400/12 px-5 py-2 text-sm text-accent-100"
                       disabled={isSubmitting}
                       onClick={async () => {
-                        await onConfirm(drafts)
-                        closeWizard()
+                        setSubmitError(null)
+
+                        try {
+                          await onConfirm(drafts)
+                          closeWizard()
+                        } catch (error) {
+                          setSubmitError(
+                            error instanceof Error
+                              ? error.message
+                              : 'Import failed. Please try again.',
+                          )
+                        }
                       }}
                       type="button"
                     >

@@ -92,7 +92,25 @@ const fetchJson = async <T>(path: string, init?: RequestInit) => {
   const response = await fetch(createUrl(path), init)
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`)
+    let message = `Request failed: ${response.status}`
+
+    try {
+      const payload = (await response.json()) as { message?: string }
+      if (payload.message) {
+        message = payload.message
+      }
+    } catch {
+      try {
+        const text = await response.text()
+        if (text.trim()) {
+          message = text.trim()
+        }
+      } catch {
+        // Keep the default HTTP status message when the response body is unreadable.
+      }
+    }
+
+    throw new Error(message)
   }
 
   return (await response.json()) as T
