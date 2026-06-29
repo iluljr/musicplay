@@ -31,3 +31,9 @@ Thumbs.db
 
 # Local app data
 .agents/
+
+# Runtime storage
+storage/
+backend/data/
+backend/runtime/
+uploads/

@@ -5,13 +5,16 @@ services:
       dockerfile: Dockerfile.backend
       network: host
     container_name: musicplay-backend
+    environment:
+      DATA_DIR: /app/backend/runtime/data
+      UPLOADS_DIR: /app/backend/runtime/uploads
     ports:
       - "127.0.0.1:3001:3001"
     expose:
       - "3001"
     volumes:
-      - ./uploads:/app/backend/uploads
-      - ./backend/data:/app/backend/data
+      - ./storage/uploads:/app/backend/runtime/uploads
+      - ./storage/data:/app/backend/runtime/data
     healthcheck:
       test:
         [

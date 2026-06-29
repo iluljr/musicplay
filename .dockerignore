@@ -5,5 +5,7 @@ backend/node_modules
 .git
 .agents
 uploads
+storage
 backend/data
+backend/runtime
 *.log

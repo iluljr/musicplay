@@ -4,8 +4,11 @@ import path from 'node:path'
 import { seedPlaylists, seedSongs } from './seed.js'
 import type { Playlist, Song, SongAsset, SongAssetKind } from './types.js'
 
-const dataDir = path.resolve(process.cwd(), 'data')
-const uploadsDir = path.resolve(process.cwd(), 'uploads')
+const resolveRuntimePath = (value: string | undefined, fallback: string) =>
+  value ? path.resolve(value) : path.resolve(process.cwd(), fallback)
+
+const dataDir = resolveRuntimePath(process.env.DATA_DIR, 'runtime/data')
+const uploadsDir = resolveRuntimePath(process.env.UPLOADS_DIR, 'runtime/uploads')
 const databasePath = path.join(dataDir, 'musicplay.db')
 
 fs.mkdirSync(dataDir, { recursive: true })
