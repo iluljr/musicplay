@@ -37,6 +37,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: live.digitalmfa.com
     ports:
       - "127.0.0.1:4173:4173"
     expose:
