@@ -19,6 +19,7 @@ export const usePlaylistCollection = () => {
       duplicatePlaylist: state.duplicatePlaylist,
       reorderSongs: state.reorderSongs,
       setPlaylistSongs: state.setPlaylistSongs,
+      createPlaylistWithSongs: state.createPlaylistWithSongs,
     })),
   )
   const songs = useLibraryStore((state) => state.songs)
@@ -99,6 +100,16 @@ export const usePlaylistCollection = () => {
     playerGateway.setQueue(playlist.songs, startSongId ?? playlist.songs[0], shouldPlay)
   }
 
+  const addAllSongsToPlaylist = async (playlistId: string) => {
+    const playlist = playlists.find((entry) => entry.id === playlistId)
+    if (!playlist) {
+      return
+    }
+
+    const nextSongIds = songs.map((song) => song.id)
+    await actions.setPlaylistSongs(playlistId, nextSongIds)
+  }
+
   return {
     playlists,
     activePlaylistId,
@@ -113,6 +124,7 @@ export const usePlaylistCollection = () => {
     addSongToPlaylist,
     removeSongFromPlaylist,
     activatePlaylistQueue,
+    addAllSongsToPlaylist,
     ...actions,
   }
 }

@@ -9,6 +9,7 @@ import { getSongPalette } from '@/utils/song'
 
 export const PlaylistPage = () => {
   const {
+    addAllSongsToPlaylist,
     activePlaylist,
     activePlaylistId,
     activeSongId,
@@ -287,14 +288,31 @@ export const PlaylistPage = () => {
                     </p>
                   </div>
                   {playlistSongs.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70"
+                        onClick={() => void addAllSongsToPlaylist(activePlaylist.id)}
+                        type="button"
+                      >
+                        Add All Imported Songs
+                      </button>
+                      <button
+                        className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70"
+                        onClick={() => void setPlaylistSongs(activePlaylist.id, [])}
+                        type="button"
+                      >
+                        Clear Playlist
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70"
-                      onClick={() => void setPlaylistSongs(activePlaylist.id, [])}
+                      onClick={() => void addAllSongsToPlaylist(activePlaylist.id)}
                       type="button"
                     >
-                      Clear Playlist
+                      Add All Imported Songs
                     </button>
-                  ) : null}
+                  )}
                 </div>
 
                 <div className="space-y-3">

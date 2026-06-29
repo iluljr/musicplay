@@ -16,6 +16,7 @@ import { LibrarySongRow } from '@/components/library/LibrarySongRow'
 import { MetadataEditorDialog } from '@/components/library/MetadataEditorDialog'
 import { useLibraryCollection } from '@/hooks/useLibraryCollection'
 import { useMediaLibraryManager } from '@/hooks/useMediaLibraryManager'
+import { usePlaylistStore } from '@/stores/playlistStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import type { Song } from '@/types/song'
 
@@ -37,6 +38,7 @@ const selectClassName =
 export const LibraryPage = () => {
   const library = useLibraryCollection()
   const playSongById = usePlayerStore((state) => state.playSongById)
+  const createPlaylistWithSongs = usePlaylistStore((state) => state.createPlaylistWithSongs)
   const manager = useMediaLibraryManager()
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingSong, setEditingSong] = useState<Song | null>(null)
@@ -214,6 +216,28 @@ export const LibraryPage = () => {
               <span className="inline-flex items-center gap-2">
                 <Copy className="h-4 w-4" />
                 Duplicate
+              </span>
+            </button>
+            <button
+              className="rounded-full border border-accent-300/25 bg-accent-400/10 px-4 py-2 text-sm text-accent-100 disabled:opacity-40"
+              disabled={bulkTargetIds.length === 0}
+              onClick={async () => {
+                const name = window
+                  .prompt('New playlist name', `Playlist ${new Date().toLocaleDateString()}`)
+                  ?.trim()
+
+                if (!name) {
+                  return
+                }
+
+                await createPlaylistWithSongs(name, bulkTargetIds)
+                library.clearSelectedSongs()
+              }}
+              type="button"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Copy className="h-4 w-4" />
+                Create Playlist
               </span>
             </button>
             <button
