@@ -37,3 +37,5 @@ storage/
 backend/data/
 backend/runtime/
 uploads/
+certbot/
+infra/nginx/conf.d/
